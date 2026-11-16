@@ -1,0 +1,8 @@
+{
+  "name": "CAD Marcenaria — Desenho Técnico Paramétrico",
+  "description": "Gerador de desenho técnico paramétrico para marcenaria em formato A4 Paisagem (ABNT) com cálculo automático de usinagem, detalhe isométrico do rebaixo e exportação em PDF.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

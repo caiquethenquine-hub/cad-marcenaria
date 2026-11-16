@@ -1,0 +1,1843 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CAD Marcenaria — Desenho Técnico Paramétrico</title>
+  <!-- Biblioteca html2pdf.js para exportação em A4 Paisagem -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <style>
+    :root {
+      --bg-app: #eef1f5;
+      --bg-panel: #ffffff;
+      --bg-header: #1b222c;
+      --border-color: #d1d9e6;
+      --text-main: #1e293b;
+      --text-muted: #64748b;
+      --accent: #2563eb;
+      --accent-hover: #1d4ed8;
+      --auto-bg: #eff6ff;
+      --auto-border: #3b82f6;
+      --error-bg: #fef2f2;
+      --error-border: #ef4444;
+      --error-text: #b91c1c;
+      --ok-bg: #f0fdf4;
+      --ok-border: #22c55e;
+      --ok-text: #15803d;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg-app);
+      color: var(--text-main);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Cabeçalho Superior */
+    .app-header {
+      background-color: var(--bg-header);
+      color: #ffffff;
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 2px solid #0f172a;
+      flex-shrink: 0;
+    }
+
+    .app-header-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .app-header-title h1 {
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: 0.4px;
+    }
+
+    .app-header-title span.badge {
+      background: #334155;
+      color: #e2e8f0;
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-weight: 500;
+    }
+
+    .header-meta {
+      font-size: 12px;
+      color: #94a3b8;
+    }
+
+    /* Layout Duas Colunas */
+    .workspace {
+      display: grid;
+      grid-template-columns: 390px 1fr;
+      flex: 1;
+      min-height: 0;
+    }
+
+    /* Coluna Esquerda: Painel de Controles */
+    .controls-panel {
+      background-color: var(--bg-panel);
+      border-right: 1px solid var(--border-color);
+      padding: 16px 18px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .control-group {
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 12px 14px;
+      background: #fafbfc;
+    }
+
+    .control-group-title {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: #334155;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 6px;
+    }
+
+    .control-hint {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+      line-height: 1.35;
+    }
+
+    .fields-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .field-full {
+      grid-column: 1 / -1;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .field-label-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+    }
+
+    .field label {
+      font-size: 12px;
+      font-weight: 600;
+      color: #334155;
+    }
+
+    .field input[type="number"],
+    .field input[type="text"],
+    .field input[type="date"] {
+      width: 100%;
+      padding: 7px 10px;
+      font-size: 13px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      background-color: #ffffff;
+      color: var(--text-main);
+      transition: border-color 0.15s, box-shadow 0.15s, background-color 0.15s;
+    }
+
+    .field input:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    }
+
+    .field input:disabled {
+      background-color: #f1f5f9;
+      color: #64748b;
+      cursor: not-allowed;
+    }
+
+    .field.is-auto input:not(:disabled) {
+      background-color: var(--auto-bg);
+      border-color: var(--auto-border);
+      font-weight: 600;
+      color: #1e3a8a;
+    }
+
+    .field.has-error input {
+      border-color: var(--error-border);
+      background-color: var(--error-bg);
+    }
+
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      background-color: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-bottom: 10px;
+      transition: border-color 0.15s, background-color 0.15s;
+    }
+
+    .checkbox-row:hover {
+      border-color: var(--accent);
+      background-color: #f8fafc;
+    }
+
+    .checkbox-row input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    .checkbox-row span {
+      font-size: 12px;
+      font-weight: 600;
+      color: #1e293b;
+      user-select: none;
+    }
+
+    .auto-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid #cbd5e1;
+      background: #ffffff;
+      color: #64748b;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.15s;
+    }
+
+    .auto-toggle:hover:not(:disabled) {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .auto-toggle.active {
+      background-color: var(--accent);
+      border-color: var(--accent);
+      color: #ffffff;
+    }
+
+    .auto-toggle:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .validation-box {
+      padding: 10px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      line-height: 1.4;
+      font-weight: 600;
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+    }
+
+    .validation-box.error {
+      background-color: var(--error-bg);
+      border: 1px solid var(--error-border);
+      color: var(--error-text);
+    }
+
+    .validation-box.ok {
+      background-color: var(--ok-bg);
+      border: 1px solid var(--ok-border);
+      color: var(--ok-text);
+    }
+
+    .btn-export {
+      width: 100%;
+      padding: 12px 16px;
+      font-size: 14px;
+      font-weight: 700;
+      color: #ffffff;
+      background-color: var(--accent);
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: background-color 0.15s, transform 0.1s;
+      box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
+    }
+
+    .btn-export:hover:not(:disabled) {
+      background-color: var(--accent-hover);
+    }
+
+    .btn-export:active:not(:disabled) {
+      transform: translateY(1px);
+    }
+
+    .btn-export:disabled {
+      opacity: 0.6;
+      cursor: wait;
+    }
+
+    /* Coluna Direita: Prévia do Desenho A4 Paisagem */
+    .preview-panel {
+      background-color: #d8dee8;
+      background-image:
+        linear-gradient(rgba(100, 116, 139, 0.08) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(100, 116, 139, 0.08) 1px, transparent 1px);
+      background-size: 24px 24px;
+      padding: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: auto;
+    }
+
+    .a4-sheet {
+      position: relative;
+      width: 100%;
+      max-width: 1120px;
+      aspect-ratio: 297 / 210;
+      background-color: #ffffff;
+      box-shadow: 0 12px 32px rgba(15, 23, 42, 0.22);
+      border: 1px solid #cbd5e1;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    .a4-sheet svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+      background-color: #ffffff;
+    }
+
+    /* Legenda Visual (Bússola do Projetista) - Oculta no PDF */
+    .designer-legend {
+      position: absolute;
+      top: 18px;
+      right: 22px;
+      background-color: rgba(255, 255, 255, 0.94);
+      border: 1px solid #cbd5e1;
+      border-radius: 5px;
+      padding: 5px 10px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #1e293b;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+      pointer-events: none;
+      z-index: 10;
+      white-space: nowrap;
+    }
+
+    @media (max-width: 1050px) {
+      body {
+        height: auto;
+        overflow: auto;
+      }
+      .workspace {
+        grid-template-columns: 1fr;
+      }
+      .controls-panel {
+        border-right: none;
+        border-bottom: 1px solid var(--border-color);
+        overflow-y: visible;
+      }
+      .preview-panel {
+        min-height: 540px;
+      }
+    }
+
+    @media print {
+      .app-header,
+      .controls-panel,
+      .designer-legend {
+        display: none !important;
+      }
+      .preview-panel {
+        padding: 0;
+        background: none;
+      }
+      .a4-sheet {
+        box-shadow: none;
+        border: none;
+        width: 297mm;
+        height: 210mm;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <div class="app-header-title">
+      <h1>CAD MARCENARIA — DESENHO TÉCNICO PARAMÉTRICO</h1>
+      <span class="badge">A4 PAISAGEM • ABNT</span>
+    </div>
+    <div class="header-meta" id="headerSummary">
+      Peça: 1220 × 250 × 18 | Usinagem: 1200 × 17
+    </div>
+  </header>
+
+  <main class="workspace">
+    <!-- PAINEL DE CONTROLES (ESQUERDA) -->
+    <aside class="controls-panel">
+
+      <!-- Grupo 1: Dados do Carimbo -->
+      <section class="control-group">
+        <div class="control-group-title">
+          <span>1. Dados do Carimbo</span>
+        </div>
+        <div class="fields-grid">
+          <div class="field field-full">
+            <label for="partName">Nome da Peça</label>
+            <input type="text" id="partName" value="Prateleira LED Home - Ref. 8372" />
+          </div>
+          <div class="field">
+            <label for="partMaterial">Material</label>
+            <input type="text" id="partMaterial" value="MDF Madeirado" />
+          </div>
+          <div class="field">
+            <label for="partDate">Data</label>
+            <input type="date" id="partDate" />
+          </div>
+        </div>
+      </section>
+
+      <!-- Grupo 2: Dimensões da Peça -->
+      <section class="control-group">
+        <div class="control-group-title">
+          <span>2. Dimensões da Peça</span>
+        </div>
+        <div class="fields-grid">
+          <div class="field" id="wrap-compTotal">
+            <div class="field-label-row">
+              <label for="compTotal">Comprimento Total</label>
+              <button type="button" class="auto-toggle" data-target="compTotal" title="Calcular este parâmetro automaticamente">AUTO</button>
+            </div>
+            <input type="number" id="compTotal" step="any" min="1" value="1220" />
+          </div>
+
+          <div class="field" id="wrap-larguraTotal">
+            <div class="field-label-row">
+              <label for="larguraTotal">Largura Total</label>
+            </div>
+            <input type="number" id="larguraTotal" step="any" min="1" value="250" />
+          </div>
+
+          <div class="field field-full" id="wrap-espessura">
+            <div class="field-label-row">
+              <label for="espessura">Espessura da Peça</label>
+            </div>
+            <input type="number" id="espessura" step="any" min="1" value="18" />
+          </div>
+        </div>
+      </section>
+
+      <!-- Grupo 3: Características da Usinagem -->
+      <section class="control-group">
+        <div class="control-group-title">
+          <span>3. Características da Usinagem (LED)</span>
+        </div>
+        <div class="fields-grid">
+          <div class="field" id="wrap-larguraRasgo">
+            <label for="larguraRasgo">Largura do Rasgo</label>
+            <input type="number" id="larguraRasgo" step="any" min="0.1" value="17" />
+          </div>
+
+          <div class="field" id="wrap-profundidade">
+            <label for="profundidade">Profundidade Rebaixo</label>
+            <input type="number" id="profundidade" step="any" min="0.1" value="12" />
+          </div>
+
+          <div class="field field-full" id="wrap-distFundo">
+            <label for="distFundo">Distância do Fundo / Borda Sup.</label>
+            <input type="number" id="distFundo" step="any" min="0" value="40" />
+          </div>
+        </div>
+      </section>
+
+      <!-- Grupo 4: Posicionamento da Usinagem -->
+      <section class="control-group">
+        <div class="control-group-title">
+          <span>4. Posicionamento Longitudinal</span>
+        </div>
+
+        <label class="checkbox-row" for="pontaAPonta">
+          <input type="checkbox" id="pontaAPonta" />
+          <span>Usinagem de ponta a ponta</span>
+        </label>
+
+        <p class="control-hint">
+          Insira <strong>3 dos 4</strong> valores (Comprimento Total, Comp. Usinagem, Margem Esq., Margem Dir.). O campo <strong>AUTO</strong> é calculado automaticamente.
+        </p>
+
+        <div class="fields-grid">
+          <div class="field field-full is-auto" id="wrap-compUsinagem">
+            <div class="field-label-row">
+              <label for="compUsinagem">Comprimento da Usinagem</label>
+              <button type="button" class="auto-toggle active" data-target="compUsinagem" title="Parâmetro calculado automaticamente">AUTO</button>
+            </div>
+            <input type="number" id="compUsinagem" step="any" min="0" value="1200" />
+          </div>
+
+          <div class="field" id="wrap-margemEsq">
+            <div class="field-label-row">
+              <label for="margemEsq">Margem Esquerda</label>
+              <button type="button" class="auto-toggle" data-target="margemEsq" title="Calcular este parâmetro automaticamente">AUTO</button>
+            </div>
+            <input type="number" id="margemEsq" step="any" min="0" value="10" />
+          </div>
+
+          <div class="field" id="wrap-margemDir">
+            <div class="field-label-row">
+              <label for="margemDir">Margem Direita</label>
+              <button type="button" class="auto-toggle" data-target="margemDir" title="Calcular este parâmetro automaticamente">AUTO</button>
+            </div>
+            <input type="number" id="margemDir" step="any" min="0" value="10" />
+          </div>
+        </div>
+      </section>
+
+      <!-- Validação Dimensional -->
+      <div id="validationBox" class="validation-box ok">
+        <span>✔</span>
+        <span id="validationMsg">Geometria válida: 10 + 1200 + 10 = 1220</span>
+      </div>
+
+      <!-- Botão Exportar PDF -->
+      <button type="button" id="btnExportPdf" class="btn-export">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        Exportar PDF
+      </button>
+    </aside>
+
+    <!-- PAINEL DE PRÉVIA (DIREITA) -->
+    <section class="preview-panel">
+      <div class="a4-sheet" id="drawingSheet">
+        <!-- Legenda Visual (Bússola do Projetista) - Oculta no PDF -->
+        <div class="designer-legend" id="designerLegend">
+          🟨 Amarelo: Usinagem | 🟥 Vermelho: Linhas de Cota | ⬛ Preto: Valores e Contornos
+        </div>
+
+        <!-- SVG Técnico A4 Paisagem -->
+        <svg id="cadSvg" viewBox="0 0 1188 840" xmlns="http://www.w3.org/2000/svg"></svg>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (function () {
+      'use strict';
+
+      const SVG_NS = 'http://www.w3.org/2000/svg';
+      const SHEET_W = 1188;
+      const SHEET_H = 840;
+      const EPSILON = 0.001;
+
+      const inputs = {
+        partName: document.getElementById('partName'),
+        partMaterial: document.getElementById('partMaterial'),
+        partDate: document.getElementById('partDate'),
+        compTotal: document.getElementById('compTotal'),
+        larguraTotal: document.getElementById('larguraTotal'),
+        espessura: document.getElementById('espessura'),
+        larguraRasgo: document.getElementById('larguraRasgo'),
+        profundidade: document.getElementById('profundidade'),
+        distFundo: document.getElementById('distFundo'),
+        pontaAPonta: document.getElementById('pontaAPonta'),
+        compUsinagem: document.getElementById('compUsinagem'),
+        margemEsq: document.getElementById('margemEsq'),
+        margemDir: document.getElementById('margemDir')
+      };
+
+      const fourParamKeys = ['compTotal', 'compUsinagem', 'margemEsq', 'margemDir'];
+      let editHistory = ['compTotal', 'margemEsq', 'margemDir', 'compUsinagem'];
+      let autoParam = 'compUsinagem';
+      let savedMargins = { me: 10, md: 10 };
+
+      const autoButtons = document.querySelectorAll('.auto-toggle');
+      const validationBox = document.getElementById('validationBox');
+      const validationMsg = document.getElementById('validationMsg');
+      const headerSummary = document.getElementById('headerSummary');
+      const cadSvg = document.getElementById('cadSvg');
+      const btnExportPdf = document.getElementById('btnExportPdf');
+
+      const today = new Date();
+      const yyyy = today.getFullYear();
+      const mmStr = String(today.getMonth() + 1).padStart(2, '0');
+      const ddStr = String(today.getDate()).padStart(2, '0');
+      inputs.partDate.value = `${yyyy}-${mmStr}-${ddStr}`;
+
+      function fmtNum(val) {
+        if (!Number.isFinite(val)) return '0';
+        const rounded = Math.round(val * 100) / 100;
+        return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(2).replace(/\.?0+$/, '');
+      }
+
+      function fmtDateBr(isoDate) {
+        if (!isoDate || !isoDate.includes('-')) return `${ddStr}/${mmStr}/${yyyy}`;
+        const parts = isoDate.split('-');
+        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+      }
+
+      function syncAutoUI() {
+        const through = inputs.pontaAPonta.checked;
+
+        inputs.margemEsq.disabled = through;
+        inputs.margemDir.disabled = through;
+        inputs.compUsinagem.disabled = through;
+
+        fourParamKeys.forEach((key) => {
+          const wrap = document.getElementById(`wrap-${key}`);
+          const btn = document.querySelector(`.auto-toggle[data-target="${key}"]`);
+          btn.disabled = through && key !== 'compTotal';
+          if (!through && key === autoParam) {
+            wrap.classList.add('is-auto');
+            btn.classList.add('active');
+          } else {
+            wrap.classList.remove('is-auto');
+            btn.classList.remove('active');
+          }
+        });
+      }
+
+      function numVal(inputEl) {
+        const v = parseFloat(inputEl.value);
+        return Number.isFinite(v) ? v : NaN;
+      }
+
+      function calculateFourthParameter() {
+        const L = numVal(inputs.compTotal);
+
+        if (inputs.pontaAPonta.checked) {
+          inputs.margemEsq.value = '0';
+          inputs.margemDir.value = '0';
+          if (Number.isFinite(L)) {
+            inputs.compUsinagem.value = fmtNum(L);
+          }
+          return;
+        }
+
+        const U = numVal(inputs.compUsinagem);
+        const ME = numVal(inputs.margemEsq);
+        const MD = numVal(inputs.margemDir);
+
+        let computed;
+        if (autoParam === 'compUsinagem' && Number.isFinite(L) && Number.isFinite(ME) && Number.isFinite(MD)) {
+          computed = L - ME - MD;
+          inputs.compUsinagem.value = fmtNum(computed);
+        } else if (autoParam === 'margemEsq' && Number.isFinite(L) && Number.isFinite(U) && Number.isFinite(MD)) {
+          computed = L - U - MD;
+          inputs.margemEsq.value = fmtNum(computed);
+        } else if (autoParam === 'margemDir' && Number.isFinite(L) && Number.isFinite(U) && Number.isFinite(ME)) {
+          computed = L - U - ME;
+          inputs.margemDir.value = fmtNum(computed);
+        } else if (autoParam === 'compTotal' && Number.isFinite(U) && Number.isFinite(ME) && Number.isFinite(MD)) {
+          computed = ME + U + MD;
+          inputs.compTotal.value = fmtNum(computed);
+        }
+      }
+
+      function readAndValidate() {
+        const state = {
+          partName: inputs.partName.value.trim() || 'Sem Nome',
+          partMaterial: inputs.partMaterial.value.trim() || 'Não especificado',
+          partDate: fmtDateBr(inputs.partDate.value),
+          compTotal: numVal(inputs.compTotal),
+          larguraTotal: numVal(inputs.larguraTotal),
+          espessura: numVal(inputs.espessura),
+          larguraRasgo: numVal(inputs.larguraRasgo),
+          profundidade: numVal(inputs.profundidade),
+          distFundo: numVal(inputs.distFundo),
+          pontaAPonta: inputs.pontaAPonta.checked,
+          compUsinagem: numVal(inputs.compUsinagem),
+          margemEsq: numVal(inputs.margemEsq),
+          margemDir: numVal(inputs.margemDir)
+        };
+
+        Object.keys(inputs).forEach((k) => {
+          const wrap = document.getElementById(`wrap-${k}`);
+          if (wrap) wrap.classList.remove('has-error');
+        });
+
+        const errors = [];
+        const numericKeys = [
+          'compTotal', 'larguraTotal', 'espessura',
+          'larguraRasgo', 'profundidade', 'distFundo',
+          'compUsinagem', 'margemEsq', 'margemDir'
+        ];
+        numericKeys.forEach((k) => {
+          if (!Number.isFinite(state[k])) {
+            errors.push(`Preencha um valor numérico válido para "${k}".`);
+            const wrap = document.getElementById(`wrap-${k}`);
+            if (wrap) wrap.classList.add('has-error');
+          }
+        });
+
+        if (errors.length === 0) {
+          if (state.compTotal <= 0) {
+            errors.push('O Comprimento Total deve ser maior que zero.');
+            document.getElementById('wrap-compTotal').classList.add('has-error');
+          }
+          if (state.larguraTotal <= 0) {
+            errors.push('A Largura Total deve ser maior que zero.');
+            document.getElementById('wrap-larguraTotal').classList.add('has-error');
+          }
+          if (state.espessura <= 0) {
+            errors.push('A Espessura deve ser maior que zero.');
+            document.getElementById('wrap-espessura').classList.add('has-error');
+          }
+          if (state.margemEsq < 0 || state.margemDir < 0 || state.compUsinagem < 0 ||
+              state.margemEsq + state.compUsinagem + state.margemDir > state.compTotal + EPSILON) {
+            errors.push('Erro dimensional: A soma das margens e usinagem ultrapassa o comprimento da peça!');
+            ['compTotal', 'compUsinagem', 'margemEsq', 'margemDir'].forEach((k) => {
+              document.getElementById(`wrap-${k}`).classList.add('has-error');
+            });
+          }
+
+          if (state.distFundo < 0 || state.larguraRasgo <= 0) {
+            errors.push('A largura do rasgo deve ser > 0 e a distância do fundo ≥ 0.');
+            document.getElementById('wrap-larguraRasgo').classList.add('has-error');
+          } else if (state.distFundo + state.larguraRasgo > state.larguraTotal + EPSILON) {
+            errors.push('Erro dimensional na largura: Distância do fundo + Largura do rasgo ultrapassa a Largura Total da peça!');
+            document.getElementById('wrap-distFundo').classList.add('has-error');
+            document.getElementById('wrap-larguraRasgo').classList.add('has-error');
+            document.getElementById('wrap-larguraTotal').classList.add('has-error');
+          }
+
+          if (state.profundidade <= 0) {
+            errors.push('A profundidade do rebaixo deve ser maior que zero.');
+            document.getElementById('wrap-profundidade').classList.add('has-error');
+          } else if (state.profundidade >= state.espessura) {
+            errors.push('Atenção: A profundidade do rebaixo atinge ou ultrapassa a espessura da peça!');
+            document.getElementById('wrap-profundidade').classList.add('has-error');
+          }
+        }
+
+        if (errors.length > 0) {
+          validationBox.className = 'validation-box error';
+          validationBox.firstElementChild.textContent = '⚠';
+          validationMsg.textContent = errors[0];
+        } else {
+          validationBox.className = 'validation-box ok';
+          validationBox.firstElementChild.textContent = '✔';
+          validationMsg.textContent = state.pontaAPonta
+            ? `Geometria válida: Usinagem passante (${fmtNum(state.compTotal)})`
+            : `Geometria válida: ${fmtNum(state.margemEsq)} + ${fmtNum(state.compUsinagem)} + ${fmtNum(state.margemDir)} = ${fmtNum(state.compTotal)}`;
+        }
+
+        headerSummary.textContent =
+          `Peça: ${fmtNum(state.compTotal)} × ${fmtNum(state.larguraTotal)} × ${fmtNum(state.espessura)} | Usinagem: ${fmtNum(state.compUsinagem)} × ${fmtNum(state.larguraRasgo)} (Prof. ${fmtNum(state.profundidade)})`;
+
+        return { state, hasError: errors.length > 0 };
+      }
+
+      function el(tag, attrs = {}, textContent = null) {
+        const node = document.createElementNS(SVG_NS, tag);
+        for (const [k, v] of Object.entries(attrs)) {
+          node.setAttribute(k, v);
+        }
+        if (textContent !== null) {
+          node.textContent = textContent;
+        }
+        return node;
+      }
+
+      function createDimText(x, y, text, extraAttrs = {}) {
+        return el('text', {
+          x,
+          y,
+          fill: 'black',
+          stroke: 'white',
+          'stroke-width': '5',
+          'paint-order': 'stroke fill',
+          style: 'paint-order: stroke fill;',
+          'stroke-linejoin': 'round',
+          'stroke-linecap': 'round',
+          'font-family': 'Segoe UI, Arial, sans-serif',
+          'font-weight': '700',
+          ...extraAttrs
+        }, text);
+      }
+
+      function drawTick(parent, x, y, size = 5) {
+        parent.appendChild(el('line', {
+          x1: x - size,
+          y1: y + size,
+          x2: x + size,
+          y2: y - size,
+          stroke: 'red',
+          'stroke-width': 1.4
+        }));
+      }
+
+      function drawArrowHead(parent, tipX, tipY, dirX, dirY, color = 'red', len = 7, halfW = 2.6) {
+        const mag = Math.hypot(dirX, dirY) || 1;
+        const ux = dirX / mag;
+        const uy = dirY / mag;
+        const px = -uy;
+        const py = ux;
+        const baseX = tipX - ux * len;
+        const baseY = tipY - uy * len;
+        const p1x = baseX + px * halfW;
+        const p1y = baseY + py * halfW;
+        const p2x = baseX - px * halfW;
+        const p2y = baseY - py * halfW;
+
+        parent.appendChild(el('polygon', {
+          points: `${tipX.toFixed(2)},${tipY.toFixed(2)} ${p1x.toFixed(2)},${p1y.toFixed(2)} ${p2x.toFixed(2)},${p2y.toFixed(2)}`,
+          fill: color
+        }));
+      }
+
+      function drawHorizontalDim(parent, x1, x2, yDim, yRef1, yRef2, labelText, opts = {}) {
+        const {
+          textPlacement = 'center',
+          textYOffset = -7,
+          fontSize = 13
+        } = opts;
+
+        const g = el('g');
+        const dir = yDim < yRef1 ? -1 : 1;
+
+        g.appendChild(el('line', {
+          x1: x1, y1: yRef1 + dir * 4,
+          x2: x1, y2: yDim + dir * 7,
+          stroke: 'red', 'stroke-width': 1
+        }));
+        g.appendChild(el('line', {
+          x1: x2, y1: yRef2 + dir * 4,
+          x2: x2, y2: yDim + dir * 7,
+          stroke: 'red', 'stroke-width': 1
+        }));
+
+        let lineX1 = x1;
+        let lineX2 = x2;
+        if (textPlacement === 'left-outside') lineX1 = x1 - 36;
+        if (textPlacement === 'right-outside') lineX2 = x2 + 36;
+
+        g.appendChild(el('line', {
+          x1: lineX1, y1: yDim,
+          x2: lineX2, y2: yDim,
+          stroke: 'red', 'stroke-width': 1.15
+        }));
+
+        drawTick(g, x1, yDim, 4.5);
+        drawTick(g, x2, yDim, 4.5);
+
+        let tx = (x1 + x2) / 2;
+        let anchor = 'middle';
+        if (textPlacement === 'left-outside') {
+          tx = x1 - 12;
+          anchor = 'end';
+        } else if (textPlacement === 'right-outside') {
+          tx = x2 + 12;
+          anchor = 'start';
+        }
+
+        g.appendChild(createDimText(tx, yDim + textYOffset, labelText, {
+          'font-size': fontSize,
+          'text-anchor': anchor
+        }));
+
+        parent.appendChild(g);
+      }
+
+      function drawVerticalDim(parent, y1, y2, xDim, xRef1, xRef2, labelText, opts = {}) {
+        const {
+          textSide = 'left',
+          leaderY = null,
+          fontSize = 13,
+          rotated = true
+        } = opts;
+
+        const g = el('g');
+
+        g.appendChild(el('line', {
+          x1: xRef1 - 4, y1: y1,
+          x2: xDim - 7, y2: y1,
+          stroke: 'red', 'stroke-width': 1
+        }));
+        g.appendChild(el('line', {
+          x1: xRef2 - 4, y1: y2,
+          x2: xDim - 7, y2: y2,
+          stroke: 'red', 'stroke-width': 1
+        }));
+
+        g.appendChild(el('line', {
+          x1: xDim, y1: y1,
+          x2: xDim, y2: y2,
+          stroke: 'red', 'stroke-width': 1.15
+        }));
+
+        drawTick(g, xDim, y1, 4.5);
+        drawTick(g, xDim, y2, 4.5);
+
+        const midY = (y1 + y2) / 2;
+
+        if (textSide === 'leader-out' && leaderY !== null) {
+          g.appendChild(el('polyline', {
+            points: `${xDim},${midY} ${xDim - 14},${leaderY} ${xDim - 32},${leaderY}`,
+            fill: 'none',
+            stroke: 'red',
+            'stroke-width': 0.9
+          }));
+          g.appendChild(el('circle', {
+            cx: xDim, cy: midY, r: 2, fill: 'red'
+          }));
+          g.appendChild(createDimText(xDim - 36, leaderY + 4, labelText, {
+            'font-size': fontSize,
+            'text-anchor': 'end'
+          }));
+        } else if (rotated) {
+          const tx = xDim - 8;
+          g.appendChild(createDimText(tx, midY, labelText, {
+            'font-size': fontSize,
+            'text-anchor': 'middle',
+            transform: `rotate(-90 ${tx} ${midY})`
+          }));
+        } else {
+          g.appendChild(createDimText(xDim - 8, midY + 4, labelText, {
+            'font-size': fontSize,
+            'text-anchor': 'end'
+          }));
+        }
+
+        parent.appendChild(g);
+      }
+
+      // DETALHE DO REBAIXO — Geometria 100% ESTÁTICA + valores dinâmicos com "mm" somente nesta vista
+      function drawRebaixoDetail(parent, secX, secY, secW, secH, profVal, largVal) {
+        parent.appendChild(el('rect', {
+          x: secX,
+          y: secY,
+          width: secW,
+          height: secH,
+          fill: '#ffffff',
+          stroke: '#000000',
+          'stroke-width': 1.2
+        }));
+
+        parent.appendChild(el('text', {
+          x: secX + 14,
+          y: secY + 21,
+          fill: '#000000',
+          'font-family': 'Segoe UI, Arial, sans-serif',
+          'font-size': 12.5,
+          'font-weight': '700',
+          'letter-spacing': '0.4'
+        }, 'DETALHE DO REBAIXO'));
+
+        parent.appendChild(el('line', {
+          x1: secX + 14,
+          y1: secY + 29,
+          x2: secX + secW - 14,
+          y2: secY + 29,
+          stroke: '#cbd5e1',
+          'stroke-width': 1
+        }));
+
+        const ox = secX + 94;
+        const oy = secY + 134;
+
+        function p3(u, v, w) {
+          return {
+            x: ox + u * 0.866 + v * 0.866,
+            y: oy - u * 0.46 + v * 0.48 - w
+          };
+        }
+
+        function pts(arr) {
+          return arr.map((p) => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(' ');
+        }
+
+        const U = 108;
+        const V1 = 34;
+        const V2 = 66;
+        const VT = 102;
+        const H = 26;
+        const D = 15;
+        const WB = H - D;
+
+        const g = el('g');
+
+        // 1. Aba superior esquerda
+        g.appendChild(el('polygon', {
+          points: pts([p3(0, 0, H), p3(U, 0, H), p3(U, V1, H), p3(0, V1, H)]),
+          fill: '#ffffff',
+          stroke: '#000000',
+          'stroke-width': 1.5,
+          'stroke-linejoin': 'round'
+        }));
+
+        // 2. Parede interna do rasgo (AMARELO)
+        g.appendChild(el('polygon', {
+          points: pts([p3(0, V1, H), p3(U, V1, H), p3(U, V1, WB), p3(0, V1, WB)]),
+          fill: '#ffff00',
+          stroke: '#000000',
+          'stroke-width': 1.4,
+          'stroke-linejoin': 'round'
+        }));
+
+        // 3. Fundo plano do rasgo (AMARELO)
+        g.appendChild(el('polygon', {
+          points: pts([p3(0, V1, WB), p3(U, V1, WB), p3(U, V2, WB), p3(0, V2, WB)]),
+          fill: '#ffff00',
+          stroke: '#000000',
+          'stroke-width': 1.4,
+          'stroke-linejoin': 'round'
+        }));
+
+        // 4. Aba superior direita
+        g.appendChild(el('polygon', {
+          points: pts([p3(0, V2, H), p3(U, V2, H), p3(U, VT, H), p3(0, VT, H)]),
+          fill: '#ffffff',
+          stroke: '#000000',
+          'stroke-width': 1.5,
+          'stroke-linejoin': 'round'
+        }));
+
+        // 5. Face lateral direita
+        g.appendChild(el('polygon', {
+          points: pts([p3(0, VT, H), p3(U, VT, H), p3(U, VT, 0), p3(0, VT, 0)]),
+          fill: '#ffffff',
+          stroke: '#000000',
+          'stroke-width': 1.5,
+          'stroke-linejoin': 'round'
+        }));
+
+        // 6. Face frontal-esquerda em perfil "U"
+        const frontFacePts = [
+          p3(0, 0, H),
+          p3(0, V1, H),
+          p3(0, V1, WB),
+          p3(0, V2, WB),
+          p3(0, V2, H),
+          p3(0, VT, H),
+          p3(0, VT, 0),
+          p3(0, 0, 0)
+        ];
+        g.appendChild(el('polygon', {
+          points: pts(frontFacePts),
+          fill: '#ffffff',
+          stroke: '#000000',
+          'stroke-width': 1.5,
+          'stroke-linejoin': 'round'
+        }));
+
+        // 7. Linhas curvas de corte/ruptura na face frontal-esquerda
+        function frontCurve(vA, wA, vC, wC, vB, wB) {
+          const A = p3(0, vA, wA);
+          const C = p3(0, vC, wC);
+          const B = p3(0, vB, wB);
+          return `M ${A.x.toFixed(2)},${A.y.toFixed(2)} Q ${C.x.toFixed(2)},${C.y.toFixed(2)} ${B.x.toFixed(2)},${B.y.toFixed(2)}`;
+        }
+
+        const grainPaths = [
+          frontCurve(0, 18, 12, 16, 20, 20),
+          frontCurve(0, 9, 22, 12, 34, 6),
+          frontCurve(34, 6, 48, 3, 56, 0),
+          frontCurve(52, 11, 56, 5, 62, 0),
+          frontCurve(68, 0, 74, 14, 88, 22),
+          frontCurve(76, 0, 86, 10, 102, 13)
+        ];
+        grainPaths.forEach((d) => {
+          g.appendChild(el('path', {
+            d,
+            fill: 'none',
+            stroke: '#000000',
+            'stroke-width': 0.85,
+            'stroke-linecap': 'round'
+          }));
+        });
+
+        // === COTA 1: PROFUNDIDADE ===
+        const profA1 = p3(U, V1, H);
+        const profA2 = p3(U + 22, V1, H);
+        const profB1 = p3(U, V1, WB);
+        const profB2 = p3(U + 22, V1, WB);
+        const profDimTop = p3(U + 16, V1, H);
+        const profDimBot = p3(U + 16, V1, WB);
+
+        g.appendChild(el('line', {
+          x1: profA1.x, y1: profA1.y, x2: profA2.x, y2: profA2.y,
+          stroke: 'red', 'stroke-width': 1
+        }));
+        g.appendChild(el('line', {
+          x1: profB1.x, y1: profB1.y, x2: profB2.x, y2: profB2.y,
+          stroke: 'red', 'stroke-width': 1
+        }));
+
+        const profLineTopY = profDimTop.y - 34;
+        g.appendChild(el('line', {
+          x1: profDimTop.x, y1: profLineTopY,
+          x2: profDimBot.x, y2: profDimBot.y,
+          stroke: 'red', 'stroke-width': 1.1
+        }));
+
+        drawArrowHead(g, profDimTop.x, profDimTop.y, 0, 1, 'red', 6.5, 2.4);
+        drawArrowHead(g, profDimBot.x, profDimBot.y, 0, -1, 'red', 6.5, 2.4);
+
+        const profTextX = profDimTop.x - 6;
+        const profTextY = profDimTop.y - 16;
+        g.appendChild(el('text', {
+          x: profTextX,
+          y: profTextY,
+          fill: '#000000',
+          'font-family': 'Segoe UI, Arial, sans-serif',
+          'font-size': 11.5,
+          'font-weight': '700',
+          'text-anchor': 'middle',
+          transform: `rotate(-90 ${profTextX} ${profTextY})`
+        }, `${fmtNum(profVal)}mm`));
+
+        const pBoxX = secX + 54;
+        const pBoxY = secY + 42;
+        const pBoxW = 104;
+        const pBoxH = 20;
+        g.appendChild(el('rect', {
+          x: pBoxX, y: pBoxY, width: pBoxW, height: pBoxH,
+          fill: '#ffffff', stroke: 'red', 'stroke-width': 1
+        }));
+        g.appendChild(el('text', {
+          x: pBoxX + pBoxW / 2,
+          y: pBoxY + 14,
+          fill: 'red',
+          'font-family': 'Segoe UI, Arial, sans-serif',
+          'font-size': 11,
+          'font-weight': '700',
+          'text-anchor': 'middle'
+        }, 'PROFUNDIDADE'));
+
+        const pLeadStartX = pBoxX + pBoxW + 2;
+        const pLeadStartY = pBoxY + pBoxH / 2;
+        const pLeadMidX = pLeadStartX + 24;
+        const pLeadTipX = profDimTop.x - 16;
+        const pLeadTipY = profTextY - 3;
+        g.appendChild(el('polyline', {
+          points: `${pLeadStartX},${pLeadStartY} ${pLeadMidX},${pLeadStartY} ${pLeadTipX},${pLeadTipY}`,
+          fill: 'none', stroke: 'red', 'stroke-width': 1
+        }));
+        drawArrowHead(g, pLeadTipX, pLeadTipY, pLeadTipX - pLeadMidX, pLeadTipY - pLeadStartY, 'red', 7, 2.5);
+
+        // === COTA 2: LARGURA ===
+        const largA1 = p3(U, V1, H);
+        const largA2 = p3(U + 36, V1, H);
+        const largB1 = p3(U, V2, H);
+        const largB2 = p3(U + 36, V2, H);
+        const largDimA = p3(U + 29, V1, H);
+        const largDimB = p3(U + 29, V2, H);
+
+        g.appendChild(el('line', {
+          x1: largA1.x, y1: largA1.y, x2: largA2.x, y2: largA2.y,
+          stroke: 'red', 'stroke-width': 1
+        }));
+        g.appendChild(el('line', {
+          x1: largB1.x, y1: largB1.y, x2: largB2.x, y2: largB2.y,
+          stroke: 'red', 'stroke-width': 1
+        }));
+
+        g.appendChild(el('line', {
+          x1: largDimA.x, y1: largDimA.y,
+          x2: largDimB.x, y2: largDimB.y,
+          stroke: 'red', 'stroke-width': 1.1
+        }));
+
+        const lDirX = largDimB.x - largDimA.x;
+        const lDirY = largDimB.y - largDimA.y;
+        drawArrowHead(g, largDimA.x, largDimA.y, -lDirX, -lDirY, 'red', 6.5, 2.4);
+        drawArrowHead(g, largDimB.x, largDimB.y, lDirX, lDirY, 'red', 6.5, 2.4);
+
+        const largMidX = (largDimA.x + largDimB.x) / 2;
+        const largMidY = (largDimA.y + largDimB.y) / 2;
+        const largAngleDeg = Math.atan2(lDirY, lDirX) * (180 / Math.PI);
+        const largTextX = largMidX + 4;
+        const largTextY = largMidY - 5;
+
+        g.appendChild(el('text', {
+          x: largTextX,
+          y: largTextY,
+          fill: '#000000',
+          'font-family': 'Segoe UI, Arial, sans-serif',
+          'font-size': 11.5,
+          'font-weight': '700',
+          'text-anchor': 'middle',
+          transform: `rotate(${largAngleDeg.toFixed(2)} ${largTextX} ${largTextY})`
+        }, `${fmtNum(largVal)}mm`));
+
+        const lBoxX = secX + 404;
+        const lBoxY = secY + 58;
+        const lBoxW = 74;
+        const lBoxH = 20;
+        g.appendChild(el('rect', {
+          x: lBoxX, y: lBoxY, width: lBoxW, height: lBoxH,
+          fill: '#ffffff', stroke: 'red', 'stroke-width': 1
+        }));
+        g.appendChild(el('text', {
+          x: lBoxX + lBoxW / 2,
+          y: lBoxY + 14,
+          fill: 'red',
+          'font-family': 'Segoe UI, Arial, sans-serif',
+          'font-size': 11,
+          'font-weight': '700',
+          'text-anchor': 'middle'
+        }, 'LARGURA'));
+
+        const lLeadStartX = lBoxX - 2;
+        const lLeadStartY = lBoxY + lBoxH / 2;
+        const lLeadMidX = lLeadStartX - 18;
+        const lLeadTipX = largMidX + 18;
+        const lLeadTipY = largMidY - 6;
+        g.appendChild(el('polyline', {
+          points: `${lLeadStartX},${lLeadStartY} ${lLeadMidX},${lLeadStartY} ${lLeadTipX},${lLeadTipY}`,
+          fill: 'none', stroke: 'red', 'stroke-width': 1
+        }));
+        drawArrowHead(g, lLeadTipX, lLeadTipY, lLeadTipX - lLeadMidX, lLeadTipY - lLeadStartY, 'red', 7, 2.5);
+
+        parent.appendChild(g);
+      }
+
+      function renderSVG(state, hasError) {
+        cadSvg.innerHTML = '';
+
+        const defs = el('defs');
+
+        const woodGrad = el('linearGradient', {
+          id: 'woodGradient',
+          x1: '0%', y1: '0%', x2: '0%', y2: '100%'
+        });
+        woodGrad.appendChild(el('stop', { offset: '0%', 'stop-color': '#9c7148' }));
+        woodGrad.appendChild(el('stop', { offset: '30%', 'stop-color': '#855c37' }));
+        woodGrad.appendChild(el('stop', { offset: '65%', 'stop-color': '#a3774c' }));
+        woodGrad.appendChild(el('stop', { offset: '100%', 'stop-color': '#7d5430' }));
+        defs.appendChild(woodGrad);
+
+        const woodPattern = el('pattern', {
+          id: 'woodGrain',
+          width: '160',
+          height: '44',
+          patternUnits: 'userSpaceOnUse'
+        });
+        woodPattern.appendChild(el('rect', {
+          width: '160', height: '44', fill: 'url(#woodGradient)'
+        }));
+        woodPattern.appendChild(el('path', {
+          d: 'M0,8 Q40,5 80,9 T160,8 M0,20 Q50,24 100,19 T160,21 M0,33 Q35,30 90,35 T160,33',
+          fill: 'none',
+          stroke: '#523418',
+          'stroke-width': '1.2',
+          opacity: '0.24'
+        }));
+        woodPattern.appendChild(el('path', {
+          d: 'M0,14 Q60,12 120,15 T160,14 M0,27 Q45,29 110,26 T160,28 M0,40 Q55,38 115,41 T160,40',
+          fill: 'none',
+          stroke: '#cfa57a',
+          'stroke-width': '0.9',
+          opacity: '0.18'
+        }));
+        defs.appendChild(woodPattern);
+
+        cadSvg.appendChild(defs);
+
+        cadSvg.appendChild(el('rect', {
+          x: 0, y: 0, width: SHEET_W, height: SHEET_H, fill: '#ffffff'
+        }));
+
+        const mL = 48, mT = 28, mR = SHEET_W - 28, mB = SHEET_H - 28;
+        cadSvg.appendChild(el('rect', {
+          x: mL, y: mT,
+          width: mR - mL,
+          height: mB - mT,
+          fill: 'none',
+          stroke: '#000000',
+          'stroke-width': 1.8
+        }));
+
+        cadSvg.appendChild(el('rect', {
+          x: 16, y: 16,
+          width: SHEET_W - 32,
+          height: SHEET_H - 32,
+          fill: 'none',
+          stroke: '#94a3b8',
+          'stroke-width': 0.7
+        }));
+
+        cadSvg.appendChild(el('text', {
+          x: mL + 16,
+          y: mT + 26,
+          fill: '#000000',
+          'font-family': 'Segoe UI, Arial, sans-serif',
+          'font-size': 15,
+          'font-weight': '700',
+          'letter-spacing': '0.5'
+        }, 'VISTA SUPERIOR (PLANTA DE USINAGEM)'));
+
+        cadSvg.appendChild(el('text', {
+          x: mL + 16,
+          y: mT + 44,
+          fill: '#475569',
+          'font-family': 'Segoe UI, Arial, sans-serif',
+          'font-size': 11,
+          'font-weight': '600'
+        }, 'UNIDADES EM MILÍMETROS'));
+
+        const L = Math.max(1, Number.isFinite(state.compTotal) ? state.compTotal : 1220);
+        const W = Math.max(1, Number.isFinite(state.larguraTotal) ? state.larguraTotal : 250);
+        const T = Math.max(1, Number.isFinite(state.espessura) ? state.espessura : 18);
+        const ME = Math.max(0, Number.isFinite(state.margemEsq) ? state.margemEsq : 0);
+        const MD = Math.max(0, Number.isFinite(state.margemDir) ? state.margemDir : 0);
+        const U = Math.max(0, Number.isFinite(state.compUsinagem) ? state.compUsinagem : 0);
+        const df = Math.max(0, Number.isFinite(state.distFundo) ? state.distFundo : 0);
+        const lr = Math.max(0.1, Number.isFinite(state.larguraRasgo) ? state.larguraRasgo : 17);
+        const pr = Math.max(0.1, Number.isFinite(state.profundidade) ? state.profundidade : 12);
+
+        const secX = mL + 16;
+        const secY = mB - 224;
+        const secW = 540;
+        const secH = 208;
+
+        const drawBoxX = mL + 145;
+        const drawBoxY = mT + 125;
+        const drawBoxW = (mR - 65) - drawBoxX;
+        const drawBoxH = (secY - 46) - drawBoxY;
+
+        const scale = Math.min(drawBoxW / L, drawBoxH / W);
+        const pieceW = L * scale;
+        const pieceH = W * scale;
+
+        const pieceX = drawBoxX + (drawBoxW - pieceW) / 2;
+        const pieceY = drawBoxY + (drawBoxH - pieceH) / 2;
+
+        const approxRatio = Math.max(1, Math.round((4 / scale) * 10) / 10);
+        cadSvg.appendChild(el('text', {
+          x: mL + 165,
+          y: mT + 44,
+          fill: '#475569',
+          'font-family': 'Segoe UI, Arial, sans-serif',
+          'font-size': 11,
+          'font-weight': '600'
+        }, `| ESCALA APROX. 1:${fmtNum(approxRatio)}`));
+
+        // Peça de Madeira (2D)
+        cadSvg.appendChild(el('rect', {
+          x: pieceX,
+          y: pieceY,
+          width: pieceW,
+          height: pieceH,
+          fill: 'url(#woodGrain)',
+          stroke: '#000000',
+          'stroke-width': 1.6
+        }));
+
+        // Usinagem (2D)
+        const ux = pieceX + ME * scale;
+        const uw = Math.min(U * scale, Math.max(0, pieceW - ME * scale));
+        const uy = pieceY + df * scale;
+        const uh = Math.min(lr * scale, Math.max(0, pieceH - df * scale));
+
+        if (uw > 0 && uh > 0) {
+          cadSvg.appendChild(el('rect', {
+            x: ux,
+            y: uy,
+            width: uw,
+            height: uh,
+            fill: 'yellow',
+            'fill-opacity': '0.82',
+            stroke: '#ca8a04',
+            'stroke-width': 0.8
+          }));
+
+          cadSvg.appendChild(el('line', {
+            x1: ux,
+            y1: uy + uh / 2,
+            x2: ux + uw,
+            y2: uy + uh / 2,
+            stroke: 'yellow',
+            'stroke-width': '3'
+          }));
+        }
+
+        if (hasError) {
+          cadSvg.appendChild(el('text', {
+            x: pieceX + pieceW / 2,
+            y: pieceY + pieceH + 22,
+            fill: 'red',
+            'font-family': 'Segoe UI, Arial, sans-serif',
+            'font-size': 12,
+            'font-weight': '700',
+            'text-anchor': 'middle'
+          }, '⚠ ATENÇÃO: VERIFICAR ERRO DIMENSIONAL NO PAINEL DE CONTROLES'));
+        }
+
+        // Cotas externas (2D)
+        const yDimSub = pieceY - 28;
+        const yDimTotal = pieceY - 64;
+
+        drawHorizontalDim(
+          cadSvg,
+          pieceX,
+          pieceX + pieceW,
+          yDimTotal,
+          pieceY,
+          pieceY,
+          `${fmtNum(L)}`,
+          { fontSize: 13.5, textYOffset: -8 }
+        );
+
+        const uEnd = ux + uw;
+        drawHorizontalDim(
+          cadSvg,
+          ux,
+          uEnd,
+          yDimSub,
+          uy,
+          uy,
+          `${fmtNum(U)}`,
+          { fontSize: 12.5, textPlacement: 'center', textYOffset: -7 }
+        );
+
+        const mePx = ux - pieceX;
+        if (ME > EPSILON) {
+          drawHorizontalDim(
+            cadSvg,
+            pieceX,
+            ux,
+            yDimSub,
+            pieceY,
+            uy,
+            `${fmtNum(ME)}`,
+            {
+              fontSize: 12,
+              textPlacement: mePx < 30 ? 'left-outside' : 'center',
+              textYOffset: mePx < 30 ? 4 : -7
+            }
+          );
+        }
+
+        const mdPx = (pieceX + pieceW) - uEnd;
+        if (MD > EPSILON) {
+          drawHorizontalDim(
+            cadSvg,
+            uEnd,
+            pieceX + pieceW,
+            yDimSub,
+            uy,
+            pieceY,
+            `${fmtNum(MD)}`,
+            {
+              fontSize: 12,
+              textPlacement: mdPx < 30 ? 'right-outside' : 'center',
+              textYOffset: mdPx < 30 ? 4 : -7
+            }
+          );
+        }
+
+        const xDimSub = pieceX - 28;
+        const xDimTotal = pieceX - 92;
+
+        drawVerticalDim(
+          cadSvg,
+          pieceY,
+          pieceY + pieceH,
+          xDimTotal,
+          pieceX,
+          pieceX,
+          `${fmtNum(W)}`,
+          { fontSize: 13.5, rotated: true }
+        );
+
+        const dfPx = uy - pieceY;
+        const lrPx = uh;
+        const remVal = Math.max(0, W - df - lr);
+        const remPx = (pieceY + pieceH) - (uy + uh);
+
+        if (df > 0) {
+          drawVerticalDim(
+            cadSvg,
+            pieceY,
+            uy,
+            xDimSub,
+            pieceX,
+            ux,
+            `${fmtNum(df)}`,
+            {
+              fontSize: 11.5,
+              textSide: dfPx < 22 ? 'leader-out' : 'left',
+              leaderY: dfPx < 22 ? pieceY - 4 : null,
+              rotated: dfPx >= 26
+            }
+          );
+        }
+
+        const useLeaderRasgo = lrPx < 26;
+        drawVerticalDim(
+          cadSvg,
+          uy,
+          uy + uh,
+          xDimSub,
+          ux,
+          ux,
+          `${fmtNum(lr)}`,
+          {
+            fontSize: 11.5,
+            textSide: useLeaderRasgo ? 'leader-out' : 'left',
+            leaderY: useLeaderRasgo ? (uy + uh / 2) : null,
+            rotated: !useLeaderRasgo
+          }
+        );
+
+        if (remVal > EPSILON) {
+          drawVerticalDim(
+            cadSvg,
+            uy + uh,
+            pieceY + pieceH,
+            xDimSub,
+            ux,
+            pieceX,
+            `${fmtNum(remVal)}`,
+            {
+              fontSize: 11.5,
+              textSide: remPx < 22 ? 'leader-out' : 'left',
+              leaderY: remPx < 22 ? (pieceY + pieceH + 6) : null,
+              rotated: remPx >= 26
+            }
+          );
+        }
+
+        const noteX = ux + uw / 2;
+        const noteY = uy + uh;
+        const calloutY = pieceY + pieceH + 34;
+        if (uw > 0 && uh > 0) {
+          cadSvg.appendChild(el('polyline', {
+            points: `${noteX},${noteY} ${noteX},${calloutY} ${noteX + 20},${calloutY}`,
+            fill: 'none',
+            stroke: 'red',
+            'stroke-width': 1
+          }));
+          cadSvg.appendChild(el('circle', {
+            cx: noteX, cy: noteY, r: 2.5, fill: 'red'
+          }));
+          const isThrough = state.pontaAPonta || (ME <= EPSILON && MD <= EPSILON && Math.abs(U - L) <= EPSILON);
+          const tagPassante = isThrough ? ' (PASSANTE)' : '';
+          cadSvg.appendChild(createDimText(noteX + 26, calloutY + 4, `USINAGEM P/ LED${tagPassante}: ${fmtNum(U)} × ${fmtNum(lr)} (PROF. ${fmtNum(pr)})`, {
+            'font-size': 11.5
+          }));
+        }
+
+        // Detalhe do Rebaixo
+        drawRebaixoDetail(cadSvg, secX, secY, secW, secH, pr, lr);
+
+        // Carimbo / Title Block
+        const tbW = 470;
+        const tbH = 145;
+        const tbX = mR - tbW;
+        const tbY = mB - tbH;
+
+        cadSvg.appendChild(el('rect', {
+          x: tbX, y: tbY, width: tbW, height: tbH,
+          fill: '#ffffff', stroke: '#000000', 'stroke-width': 1.8
+        }));
+
+        const row1Y = tbY + 48;
+        const row2Y = tbY + 96;
+        cadSvg.appendChild(el('line', {
+          x1: tbX, y1: row1Y, x2: mR, y2: row1Y,
+          stroke: '#000000', 'stroke-width': 1.2
+        }));
+        cadSvg.appendChild(el('line', {
+          x1: tbX, y1: row2Y, x2: mR, y2: row2Y,
+          stroke: '#000000', 'stroke-width': 1.2
+        }));
+
+        const colSplit1 = tbX + 310;
+        cadSvg.appendChild(el('line', {
+          x1: colSplit1, y1: row1Y, x2: colSplit1, y2: mB,
+          stroke: '#000000', 'stroke-width': 1.2
+        }));
+        const colSplit2 = tbX + 165;
+        cadSvg.appendChild(el('line', {
+          x1: colSplit2, y1: row2Y, x2: colSplit2, y2: mB,
+          stroke: '#000000', 'stroke-width': 1.2
+        }));
+
+        function addTitleField(x, y, label, value, valSize = 13) {
+          cadSvg.appendChild(el('text', {
+            x: x + 10,
+            y: y + 15,
+            fill: '#475569',
+            'font-family': 'Segoe UI, Arial, sans-serif',
+            'font-size': 9.5,
+            'font-weight': '700',
+            'letter-spacing': '0.5'
+          }, label));
+          cadSvg.appendChild(el('text', {
+            x: x + 10,
+            y: y + 36,
+            fill: '#000000',
+            'font-family': 'Segoe UI, Arial, sans-serif',
+            'font-size': valSize,
+            'font-weight': '700'
+          }, value));
+        }
+
+        addTitleField(tbX, tbY, 'NOME DA PEÇA', state.partName.slice(0, 48), 14);
+        addTitleField(tbX, row1Y, 'MATERIAL', state.partMaterial.slice(0, 32), 13);
+        addTitleField(colSplit1, row1Y, 'ESPESSURA', `${fmtNum(T)}`, 13);
+        addTitleField(tbX, row2Y, 'DIMENSÕES (C × L)', `${fmtNum(L)} × ${fmtNum(W)}`, 12.5);
+        addTitleField(colSplit2, row2Y, 'USINAGEM (L × P)', `${fmtNum(lr)} × ${fmtNum(pr)}`, 12.5);
+        addTitleField(colSplit1, row2Y, 'DATA', state.partDate, 12.5);
+      }
+
+      function updateAll() {
+        calculateFourthParameter();
+        const { state, hasError } = readAndValidate();
+        renderSVG(state, hasError);
+      }
+
+      inputs.pontaAPonta.addEventListener('change', () => {
+        if (inputs.pontaAPonta.checked) {
+          const meVal = numVal(inputs.margemEsq);
+          const mdVal = numVal(inputs.margemDir);
+          savedMargins = {
+            me: Number.isFinite(meVal) ? meVal : 10,
+            md: Number.isFinite(mdVal) ? mdVal : 10
+          };
+        } else {
+          inputs.margemEsq.value = fmtNum(savedMargins.me);
+          inputs.margemDir.value = fmtNum(savedMargins.md);
+          autoParam = 'compUsinagem';
+        }
+        syncAutoUI();
+        updateAll();
+      });
+
+      autoButtons.forEach((btn) => {
+        btn.addEventListener('click', () => {
+          if (inputs.pontaAPonta.checked) return;
+          const target = btn.getAttribute('data-target');
+          autoParam = target;
+          editHistory = editHistory.filter((k) => k !== target);
+          editHistory.push(target);
+          syncAutoUI();
+          updateAll();
+        });
+      });
+
+      fourParamKeys.forEach((key) => {
+        inputs[key].addEventListener('input', () => {
+          if (!inputs.pontaAPonta.checked) {
+            if (key === autoParam) {
+              const candidate = editHistory[0];
+              if (candidate && candidate !== key) {
+                autoParam = candidate;
+              }
+            }
+            editHistory = editHistory.filter((k) => k !== key);
+            editHistory.push(key);
+            editHistory = [autoParam, ...editHistory.filter((k) => k !== autoParam)];
+          }
+          syncAutoUI();
+          updateAll();
+        });
+      });
+
+      Object.keys(inputs).forEach((key) => {
+        if (!fourParamKeys.includes(key) && key !== 'pontaAPonta') {
+          inputs[key].addEventListener('input', updateAll);
+        }
+      });
+
+      // Converte o SVG vetorial para imagem PNG em alta resolução (2376x1680)
+      function svgToPngDataUrl(svgEl, outW, outH) {
+        return new Promise((resolve, reject) => {
+          try {
+            const svgClone = svgEl.cloneNode(true);
+            svgClone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+            svgClone.setAttribute('width', String(outW));
+            svgClone.setAttribute('height', String(outH));
+            svgClone.style.width = `${outW}px`;
+            svgClone.style.height = `${outH}px`;
+
+            const serializer = new XMLSerializer();
+            const svgStr = serializer.serializeToString(svgClone);
+
+            const bytes = new TextEncoder().encode(svgStr);
+            let bin = '';
+            for (let i = 0; i < bytes.length; i++) {
+              bin += String.fromCharCode(bytes[i]);
+            }
+            const svgBase64 = 'data:image/svg+xml;base64,' + btoa(bin);
+
+            const img = new Image();
+            img.onload = () => {
+              try {
+                const canvas = document.createElement('canvas');
+                canvas.width = outW;
+                canvas.height = outH;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, outW, outH);
+                ctx.drawImage(img, 0, 0, outW, outH);
+                resolve(canvas.toDataURL('image/png'));
+              } catch (canvasErr) {
+                reject(canvasErr);
+              }
+            };
+            img.onerror = (err) => reject(err);
+            img.src = svgBase64;
+          } catch (err) {
+            reject(err);
+          }
+        });
+      }
+
+      function getPageCount(pdf) {
+        if (pdf && pdf.internal && typeof pdf.internal.getNumberOfPages === 'function') {
+          return pdf.internal.getNumberOfPages();
+        }
+        if (pdf && typeof pdf.getNumberOfPages === 'function') {
+          return pdf.getNumberOfPages();
+        }
+        return 1;
+      }
+
+      // Exportação para PDF A4 Paisagem via html2pdf.js (100% encaixado em 297x210mm, 1 página)
+      btnExportPdf.addEventListener('click', async () => {
+        if (typeof html2pdf === 'undefined') {
+          alert('Biblioteca html2pdf.js não carregada. Verifique sua conexão com a internet.');
+          return;
+        }
+
+        const originalText = btnExportPdf.innerHTML;
+        btnExportPdf.disabled = true;
+        btnExportPdf.textContent = 'Gerando PDF A4 Paisagem...';
+
+        const safeName = (inputs.partName.value.trim() || 'desenho-tecnico')
+          .toLowerCase()
+          .replace(/[^a-z0-9-_]+/gi, '-');
+
+        try {
+          let pngDataUrl = null;
+          try {
+            pngDataUrl = await svgToPngDataUrl(cadSvg, SHEET_W * 2, SHEET_H * 2);
+          } catch (rasterErr) {
+            console.warn('Rasterização SVG direta indisponível, usando fallback html2canvas:', rasterErr);
+          }
+
+          if (pngDataUrl) {
+            // Inicializa documento A4 Paisagem pelo html2pdf com um seed pequeno (imune a cortes de viewport)
+            const seedEl = document.createElement('div');
+            seedEl.style.width = '10px';
+            seedEl.style.height = '10px';
+            seedEl.style.background = '#ffffff';
+
+            const opt = {
+              margin: 0,
+              filename: `${safeName}.pdf`,
+              image: { type: 'png', quality: 1 },
+              html2canvas: { scale: 1, backgroundColor: '#ffffff', logging: false },
+              jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+            };
+
+            const pdf = await html2pdf().set(opt).from(seedEl).toPdf().get('pdf');
+            const totalPages = getPageCount(pdf);
+            for (let p = totalPages; p > 1; p--) {
+              pdf.deletePage(p);
+            }
+
+            pdf.setPage(1);
+            pdf.addImage(pngDataUrl, 'PNG', 0, 0, 297, 210);
+            pdf.save(`${safeName}.pdf`);
+          } else {
+            // Fallback com dimensões exatas em pixels A4 Paisagem
+            const PDF_PX_W = 1122;
+            const PDF_PX_H = 792;
+            const fallbackContainer = document.createElement('div');
+            fallbackContainer.style.width = `${PDF_PX_W}px`;
+            fallbackContainer.style.height = `${PDF_PX_H}px`;
+            fallbackContainer.style.background = '#ffffff';
+            fallbackContainer.style.overflow = 'hidden';
+
+            const svgFallback = cadSvg.cloneNode(true);
+            svgFallback.setAttribute('width', String(PDF_PX_W));
+            svgFallback.setAttribute('height', String(PDF_PX_H));
+            svgFallback.style.width = `${PDF_PX_W}px`;
+            svgFallback.style.height = `${PDF_PX_H}px`;
+            svgFallback.style.display = 'block';
+            fallbackContainer.appendChild(svgFallback);
+
+            const optFallback = {
+              margin: 0,
+              filename: `${safeName}.pdf`,
+              image: { type: 'jpeg', quality: 0.98 },
+              html2canvas: {
+                scale: 2,
+                useCORS: true,
+                backgroundColor: '#ffffff',
+                width: PDF_PX_W,
+                height: PDF_PX_H,
+                windowWidth: PDF_PX_W,
+                windowHeight: PDF_PX_H,
+                x: 0,
+                y: 0,
+                scrollX: 0,
+                scrollY: 0,
+                logging: false
+              },
+              jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+            };
+
+            await html2pdf().set(optFallback).from(fallbackContainer).save();
+          }
+        } catch (err) {
+          console.error('Erro ao exportar PDF:', err);
+          alert('Ocorreu um erro ao gerar o PDF. Detalhes: ' + (err && err.message ? err.message : err));
+        } finally {
+          btnExportPdf.disabled = false;
+          btnExportPdf.innerHTML = originalText;
+        }
+      });
+
+      syncAutoUI();
+      updateAll();
+    })();
+  </script>
+</body>
+</html>
